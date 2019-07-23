@@ -142,7 +142,7 @@ class API:
         return json["data"]["attributes"]["expires_in"]
 
     def logout(self):
-        response = self.session.delete(self._API_IM + "token/%s" % self.token)
+        response = self.session.delete(self._API_IM + f"token/{self.token}")
         response.raise_for_status()
         self.device_id = None
         self.token = None
@@ -173,18 +173,18 @@ class API:
                     self.device_id = item["id"]
                     break
             if self.device_id is None:
-                raise CommandException("Could not find a mower matching %s" % mower)
+                raise CommandException(f"Could not find a mower matching {mower}")
         else:
             self.device_id = result[0]["id"]
 
     def status(self):
-        response = self.session.get(self._API_TRACK + "mowers/%s/status" % self.device_id, headers=self._HEADERS)
+        response = self.session.get(self._API_TRACK + f"mowers/{self.device_id}/status", headers=self._HEADERS)
         response.raise_for_status()
 
         return response.json()
 
     def geo_status(self):
-        response = self.session.get(self._API_TRACK + "mowers/%s/geofence" % self.device_id, headers=self._HEADERS)
+        response = self.session.get(self._API_TRACK + f"mowers/{self.device_id}/geofence", headers=self._HEADERS)
         response.raise_for_status()
 
         return response.json()
@@ -193,7 +193,7 @@ class API:
         if command not in ["PARK", "STOP", "START"]:
             raise CommandException("Unknown command")
 
-        response = self.session.post(self._API_TRACK + "mowers/%s/control" % self.device_id,
+        response = self.session.post(self._API_TRACK + f"mowers/{self.device_id}/control",
                                     headers=self._HEADERS,
                                     json={
                                         "action": command
@@ -236,9 +236,9 @@ def create_config(args):
 
     if args.save:
         if config.save_config():
-            logger.info("Configuration saved in "automower.cfg"")
+            logger.info("Configuration saved in \"automower.cfg\"")
         else:
-            logger.info("Failed to saved configuration in "automower.cfg"")
+            logger.info("Failed to saved configuration in \"automower.cfg\"")
 
     return config, tokenConfig
 
@@ -257,7 +257,7 @@ def configure_log(config):
 def setup_api(config, tokenConfig, args):
     mow = API()
     if args.token and tokenConfig.token and not tokenConfig.token_valid():
-        logger.warn("The token expired on %s. Will create a new one." % tokenConfig.expire_on)
+        logger.warn(f"The token expired on {tokenConfig.expire_on}. Will create a new one.")
     if args.token and tokenConfig.token_valid():
         mow.set_token(tokenConfig.token, tokenConfig.provider)
     else:
@@ -291,12 +291,12 @@ def run_cli(config, tokenConfig, args):
 
             retry = 0
         except CommandException as ce:
-            log_error(args, "[ERROR] Wrong parameters: %s" % ce)
+            log_error(args, f"[ERROR] Wrong parameters: {ce}")
             break
         except Exception as ex:
             retry -= 1
             if retry > 0:
-                log_error(args, "[ERROR] %s. Retrying to send the command %d" % (ex, 3- retry))
+                log_error(args, f"[ERROR] {ex}. Retrying to send the command {3 - retry}")
             else:
                 log_error(args, "[ERROR] Failed to send the command")
                 break
@@ -360,7 +360,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
 
                 retry = 0
             except CommandException as ce:
-                msg = "[ERROR] Wrong parameters: %s" % ce
+                msg = f"[ERROR] Wrong parameters: {ce}"
                 logger.error(msg)
                 self.send_response(500, msg)
                 fatal = True
@@ -369,7 +369,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                 retry -= 1
                 if retry > 0:
                     logger.error(ex)
-                    logger.error("[ERROR] Retrying to send the command %d" % retry)
+                    logger.error(f"[ERROR] Retrying to send the command {retry}")
                 else:
                     logger.error("[ERROR] Failed to send the command")
                     self.send_response(500)
@@ -426,7 +426,7 @@ def main():
     parser.add_argument("--log-level", dest="log_level", choices=["INFO", "ERROR"],
                         help="Display all logs or just in case of error")
     parser.add_argument("--json", action="store_true",
-                        help="Enable json output. Logger will be set to "ERROR"")
+                        help="Enable json output. Logger will be set to \"ERROR\"")
 
     args = parser.parse_args()
     if args.password == ask_password:
