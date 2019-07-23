@@ -15,10 +15,10 @@ def run_logger(tc, args, stop_time):
     sch = scheduler(timefunc=time)
     status = {"status": None, "status_changed": None}
 
-    def write_log(*strings, fName=args.file, mode="a"):
-        out = open(fName, mode) if fName else stdout
+    def write_log(*strings, name=args.file, mode="a"):
+        out = open(name, mode) if name else stdout
         print(*strings, sep=",", file=out)
-        if fName:
+        if name:
             out.close()
 
     def now():
@@ -35,27 +35,27 @@ def run_logger(tc, args, stop_time):
                     now().isoformat(),
                     status["status"],
                     now() - status["status_changed"],
-                    fName=args.summary)
+                    name=args.summary)
             status["status"] = mow_status["mowerStatus"]
             status["status_changed"] = now()
         # The latest location has index 0
         location = mow_status["lastLocations"][0]
-        currentTime = datetime.now()
-        write_log(currentTime.isoformat(), mow_status["mowerStatus"], mow_status["batteryPercent"],
+        current_time = datetime.now()
+        write_log(current_time.isoformat(), mow_status["mowerStatus"], mow_status["batteryPercent"],
                   start.isoformat() if start else "",
                   now() - status["status_changed"], location["latitude"], location["longitude"])
-        if stop_time >= currentTime:
+        if stop_time >= current_time:
             if mow_status["mowerStatus"] == "PARKED_TIMER" and mow_status["batteryPercent"] == 100:
                 # The mower has a full battery and is waiting for the next timer.
                 # Skip until 2 minutes before the next timer start
-                nextStart = start - timedelta(0, 2 * 60)
-                if nextStart > datetime.now():
-                    # fallback to the usual operation if the nextStart is not in the future
-                    return sch.enterabs(nextStart.timestamp(), 1, log_status)
+                next_start = start - timedelta(0, 2 * 60)
+                if next_start > datetime.now():
+                    # fallback to the usual operation if the next_start is not in the future
+                    return sch.enterabs(next_start.timestamp(), 1, log_status)
             sch.enter(args.delay, 1, log_status)
         elif args.summary and status["status"] is not None:
             write_log(
-                now(), status["status"], now() - status["status_changed"], fName=args.summary)
+                now(), status["status"], now() - status["status_changed"], name=args.summary)
 
     write_log(
         "time",
@@ -67,7 +67,7 @@ def run_logger(tc, args, stop_time):
         "longitude",
         mode="w")
     if args.summary:
-        write_log("time", "status", "status duration", fName=args.summary, mode="w")
+        write_log("time", "status", "status duration", name=args.summary, mode="w")
     log_status()
     sch.run()
 
@@ -115,7 +115,7 @@ def main():
         "-m",
         "--mower",
         dest="mower",
-        help="Select the mower to use. When not provied the first mower will be used.")
+        help="Select the mower to use. When not provided the first mower will be used.")
     args = parser.parse_args()
 
     stop_time = parse_until(args)
