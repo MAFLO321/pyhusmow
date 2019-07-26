@@ -112,6 +112,7 @@ class CommandException(Exception):
 class API:
     _API_IM = "https://iam-api.dss.husqvarnagroup.net/api/v3/"
     _API_TRACK = "https://amc-api.dss.husqvarnagroup.net/v1/"
+    _API_APP = "https://amc-api.dss.husqvarnagroup.net/app/v1/"
     _HEADERS = {"Accept": "application/json", "Content-type": "application/json"}
 
     def __init__(self):
@@ -190,14 +191,19 @@ class API:
         return response.json()
 
     def control(self, command):
-        if command not in ["PARK", "STOP", "START"]:
+        if command in ["PARK", "STOP", "START"]:
+            response = self.session.post(self._API_TRACK + f"mowers/{self.device_id}/control",
+                                         headers=self._HEADERS,
+                                         json={
+                                             "action": command
+                                         })
+        elif command == "PARK_TIMER":
+            response = self.session.post(self._API_APP + f"mowers/{self.device_id}/control/park/duration/timer",
+                                         headers=self._HEADERS
+                                         )
+        else:
             raise CommandException("Unknown command")
 
-        response = self.session.post(self._API_TRACK + f"mowers/{self.device_id}/control",
-                                     headers=self._HEADERS,
-                                     json={
-                                         "action": command
-                                     })
         response.raise_for_status()
 
 
@@ -349,6 +355,10 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                     mow.control("PARK")
                     self.send_response(200)
                     self.end_headers()
+                elif self.path == "/park_timer":
+                    mow.control("PARK_TIMER")
+                    self.send_response(200)
+                    self.end_headers()
                 elif self.path == "/status":
                     logger.info("Get status from Husqvarna servers")
                     HTTPRequestHandler.last_status = mow.status()
@@ -401,7 +411,7 @@ def main():
     ask_password = argparse.Namespace()
 
     parser_control = subparsers.add_parser("control", help="Send command to your automower")
-    parser_control.add_argument("action", choices=["STOP", "START", "PARK"],
+    parser_control.add_argument("action", choices=["STOP", "START", "PARK", "PARK_TIMER"],
                                 help="the command")
 
     parser_list = subparsers.add_parser("list", help="List all the mowers connected to the account.")
