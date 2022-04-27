@@ -111,7 +111,7 @@ class CommandException(Exception):
 
 class API:
     _API_IM = "https://iam-api.dss.husqvarnagroup.net/api/v3/"
-    _API_TRACK = "https://amc-api.dss.husqvarnagroup.net/v1/"
+    _API_TRACK = "https://amc-api.dss.husqvarnagroup.net/app/v1/"
     _HEADERS = {"Accept": "application/json", "Content-type": "application/json"}
 
     def __init__(self):
