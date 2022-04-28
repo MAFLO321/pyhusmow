@@ -6,7 +6,7 @@ setup(
     url="https://github.com/chrisz/pyhusmow",
     author="Christophe Carre",
     license="GPLv3",
-    version="0.2.0",
+    version="0.3.0",
     packages=["pyhusmow"],
     entry_points={
         "console_scripts": [
