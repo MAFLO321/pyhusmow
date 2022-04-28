@@ -111,7 +111,7 @@ class CommandException(Exception):
 
 class API:
     _API_IM = "https://iam-api.dss.husqvarnagroup.net/api/v3/"
-    _API_TRACK = "https://amc-api.dss.husqvarnagroup.net/app/v1/"
+    _API_APP = "https://amc-api.dss.husqvarnagroup.net/app/v1/"
     _HEADERS = {"Accept": "application/json", "Content-type": "application/json"}
 
     def __init__(self):
@@ -158,7 +158,7 @@ class API:
         })
 
     def list_robots(self):
-        response = self.session.get(self._API_TRACK + "mowers", headers=self._HEADERS)
+        response = self.session.get(self._API_APP + "mowers", headers=self._HEADERS)
         response.raise_for_status()
 
         return response.json()
@@ -178,26 +178,26 @@ class API:
             self.device_id = result[0]["id"]
 
     def status(self):
-        response = self.session.get(self._API_TRACK + f"mowers/{self.device_id}/status", headers=self._HEADERS)
+        response = self.session.get(self._API_APP + f"mowers/{self.device_id}/status", headers=self._HEADERS)
         response.raise_for_status()
 
         return response.json()
 
     def geo_status(self):
-        response = self.session.get(self._API_TRACK + f"mowers/{self.device_id}/geofence", headers=self._HEADERS)
+        response = self.session.get(self._API_APP + f"mowers/{self.device_id}/geofence", headers=self._HEADERS)
         response.raise_for_status()
 
         return response.json()
 
-    def control(self, command):
-        if command not in ["PARK", "STOP", "START"]:
+    def control(self, command, param=None):
+        if command in ["PARK", "PARK_DURATION_PERIOD", "PARK_DURATION_TIMER", "START", "START_OVERRIDE_PERIOD", "STOP"]:
+            command_url = command.replace("__", "-").replace("_", "/").lower()
+            response = self.session.post(self._API_APP + f"mowers/{self.device_id}/control/{command_url}",
+                                         headers=self._HEADERS,
+                                         json=param)
+        else:
             raise CommandException("Unknown command")
 
-        response = self.session.post(self._API_TRACK + f"mowers/{self.device_id}/control",
-                                     headers=self._HEADERS,
-                                     json={
-                                         "action": command
-                                     })
         response.raise_for_status()
 
 
@@ -285,7 +285,10 @@ def run_cli(config, token_config, args):
         try:
             mow = setup_api(config, token_config, args)
             if args.command == "control":
-                mow.control(args.action)
+                if args.action in ["PARK_DURATION_PERIOD", "START_OVERRIDE_PERIOD"]:
+                    mow.control(args.action, {"period": args.period})
+                else:
+                    mow.control(args.action)
             elif args.command == "status":
                 out(mow.status())
             elif args.command == "list":
@@ -341,12 +344,24 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                     mow.control("START")
                     self.send_response(200)
                     self.end_headers()
+                elif self.path.startswith("/start/override/period/"):
+                    mow.control("START_OVERRIDE_PERIOD", {"period": int(self.path[23:])})
+                    self.send_response(200)
+                    self.end_headers()
                 elif self.path == "/stop":
                     mow.control("STOP")
                     self.send_response(200)
                     self.end_headers()
                 elif self.path == "/park":
                     mow.control("PARK")
+                    self.send_response(200)
+                    self.end_headers()
+                elif self.path.startswith("/park/duration/period/"):
+                    mow.control("PARK_DURATION_PERIOD", {"period": int(self.path[22:])})
+                    self.send_response(200)
+                    self.end_headers()
+                elif self.path == "/park/duration/timer":
+                    mow.control("PARK_DURATION_TIMER")
                     self.send_response(200)
                     self.end_headers()
                 elif self.path == "/status":
@@ -401,8 +416,11 @@ def main():
     ask_password = argparse.Namespace()
 
     parser_control = subparsers.add_parser("control", help="Send command to your automower")
-    parser_control.add_argument("action", choices=["STOP", "START", "PARK"],
+    parser_control.add_argument("action", choices=["STOP", "START", "START_OVERRIDE_PERIOD", "PARK",
+                                                    "PARK_DURATION_PERIOD", "PARK_DURATION_TIMER"],
                                 help="the command")
+    parser_control.add_argument("--period", dest="period", type=int,
+                               help="Minutes for override period")
 
     parser_list = subparsers.add_parser("list", help="List all the mowers connected to the account.")
     parser_status = subparsers.add_parser("status", help="Get the status of your automower")
